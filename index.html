@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cover Image Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg.js/3.2.4/svg.min.js"></script>
+   
+    <style>
+        body, html {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f8;
+            color: #333;
+            height: 100%;
+            overflow: hidden;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            padding: 10px;
+            margin: 0;
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .content-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+        }
+        .preview {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 10px;
+        }
+        #preview {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .controls {
+            background-color: white;
+            padding: 15px;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+        .color-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .color-option {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        #downloadBtn {
+            background-color: #3498db;
+            border: none;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            text-decoration: none;
+            display: block;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        #downloadBtn:hover {
+            background-color: #2980b9;
+        }
+        .font-size-control {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .font-size-control label {
+            margin-right: 10px;
+            flex: 1;
+        }
+        .font-size-control input {
+            width: 50px;
+        }
+        .control-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .control-column {
+            flex: 1;
+        }
+        h2 {
+            margin: 5px 0;
+            font-size: 16px;
+            color: #34495e;
+        }
+
+        @media (min-width: 768px) {
+            .content-container {
+                flex-direction: row;
+            }
+            .preview {
+                flex: 2;
+            }
+            .controls {
+                flex: 1;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <h1>Cover Image Generator</h1>
+        
+        <div class="content-container">
+            <div class="preview">
+                <div id="preview"></div>
+            </div>
+            
+            <div class="controls">
+                <div class="control-row">
+                    <div class="control-column">
+                        <h2>Background Color</h2>
+                        <div id="backgroundColors" class="color-options"></div>
+                    </div>
+                    <div class="control-column">
+                        <h2>Foreground Color</h2>
+                        <div id="foregroundColors" class="color-options"></div>
+                    </div>
+                </div>
+                
+                <h2>Headline</h2>
+                <input type="text" id="headline" value="Welcome to My Blog">
+                <div class="font-size-control">
+                    <label for="headlineFontSize">Font Size:</label>
+                    <input type="number" id="headlineFontSize" min="10" max="200" value="60">
+                </div>
+                
+                <h2>Subtext</h2>
+                <input type="text" id="subtext" value="Exploring the world of technology">
+                <div class="font-size-control">
+                    <label for="subtextFontSize">Font Size:</label>
+                    <input type="number" id="subtextFontSize" min="10" max="100" value="30">
+                </div>
+                
+                <button id="downloadBtn">Download SVG</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const colorOptions = [
+            '#FFFFFF', '#000000', '#F44336', '#E91E63', '#9C27B0',
+            '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4'
+        ];
+        let backgroundColor = '#FFFFFF';
+        let foregroundColor = '#000000';
+        let canvas;
+        let headlineFontSize = 60;
+        let subtextFontSize = 30;
+
+        function createColorOptions(elementId, setColorFunction) {
+            const container = document.getElementById(elementId);
+            colorOptions.forEach(color => {
+                const button = document.createElement('div');
+                button.className = 'color-option';
+                button.style.backgroundColor = color;
+                button.onclick = () => {
+                    setColorFunction(color);
+                    generateCoverImage();
+                };
+                container.appendChild(button);
+            });
+        }
+
+        createColorOptions('backgroundColors', color => backgroundColor = color);
+        createColorOptions('foregroundColors', color => foregroundColor = color);
+
+        function wrapText(text, maxWidth, fontSize, fontFamily) {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = words[0];
+
+            for (let i = 1; i < words.length; i++) {
+                const word = words[i];
+                const width = getTextWidth(currentLine + " " + word, `${fontSize}px ${fontFamily}`);
+                if (width < maxWidth) {
+                    currentLine += " " + word;
+                } else {
+                    lines.push(currentLine);
+                    currentLine = word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        function getTextWidth(text, font) {
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            context.font = font;
+            return context.measureText(text).width;
+        }
+
+        function generateCoverImage() {
+            const width = 1360;
+            const height = 768;
+            const padding = 60;
+            const dotSize = 2;
+            const dotSpacing = 30;
+
+            if (!canvas) {
+                canvas = SVG().addTo('#preview').size(width, height);
+            } else {
+                canvas.clear();
+            }
+
+            // Background
+            canvas.rect(width, height).fill(backgroundColor).radius(20);
+
+            // Dots
+            const dotColor = backgroundColor === '#FFFFFF' ? '#E0E0E0' : '#2A2A2A';
+            for (let x = padding; x < width - padding; x += dotSpacing) {
+                for (let y = padding; y < height - padding; y += dotSpacing) {
+                    canvas.circle(dotSize).move(x, y).fill(dotColor);
+                }
+            }
+
+            // Text
+            const headline = document.getElementById('headline').value;
+            const subtext = document.getElementById('subtext').value;
+
+            const textGroup = canvas.group();
+
+            // Headline
+            const headlineLines = wrapText(headline, width - 2 * padding, headlineFontSize, 'Arial, sans-serif');
+            const headlineText = textGroup.text(function(add) {
+                headlineLines.forEach(line => add.tspan(line).newLine());
+            }).font({ family: 'Arial, sans-serif', size: headlineFontSize, weight: 'bold', anchor: 'middle' })
+              .fill(foregroundColor);
+
+            // Subtext
+            const subtextLines = wrapText(subtext, width - 2 * padding, subtextFontSize, 'Arial, sans-serif');
+            const subtextText = textGroup.text(function(add) {
+                subtextLines.forEach(line => add.tspan(line).newLine());
+            }).font({ family: 'Arial, sans-serif', size: subtextFontSize, anchor: 'middle' })
+              .fill(foregroundColor);
+
+            const groupBox = textGroup.bbox();
+            const xCenter = width / 2;
+            const yCenter = height / 2;
+            const verticalSpacing = groupBox.height * 0.1;
+
+            headlineText.center(xCenter, yCenter - subtextText.bbox().height / 2 - verticalSpacing);
+            subtextText.center(xCenter, yCenter + headlineText.bbox().height / 2 + verticalSpacing);
+        }
+
+        document.getElementById('headline').addEventListener('input', generateCoverImage);
+        document.getElementById('subtext').addEventListener('input', generateCoverImage);
+        document.getElementById('headlineFontSize').addEventListener('input', function() {
+            headlineFontSize = parseInt(this.value);
+            generateCoverImage();
+        });
+        document.getElementById('subtextFontSize').addEventListener('input', function() {
+            subtextFontSize = parseInt(this.value);
+            generateCoverImage();
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            const svgData = document.querySelector('#preview svg').outerHTML;
+            const blob = new Blob([svgData], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'cover_image.svg';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        generateCoverImage();
+    </script>
+</body>
+</html>
